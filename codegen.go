@@ -68,11 +68,11 @@ func (c *CodeGenerator) Generate(ast *AST, symbolTables map[string]*SymbolTable)
 		return "", fmt.Errorf("methods generation error: %w", err)
 	}
 
-	// generation orismwn apothikeushs metavlhtwn
-	c.generateVariableStorage()
-
 	// telos programmatos
 	c.generateFooter()
+
+	// generation orismwn apothikeushs metavlhtwn
+	c.generateVariableStorage()
 
 	return c.output.String(), nil
 }
@@ -590,7 +590,7 @@ func (c *CodeGenerator) generateVariableStorage() {
 }
 
 func (c *CodeGenerator) generateFooter() {
-	c.output.WriteString("        END   MAIN")
+	c.output.WriteString("        END   MAIN\n")
 }
 
 // HELPERS
@@ -647,7 +647,6 @@ func (c *CodeGenerator) getParameterAddress(methodName string, index int) int {
 	return addr
 }
 
-// ✅ ΝΕΟ: Σκανάρει όλο το AST για να βρει όλα τα literals
 func (c *CodeGenerator) scanForLiterals(ast *AST) error {
 	for _, method := range ast.Methods {
 		if err := c.scanMethodForLiterals(method); err != nil {
