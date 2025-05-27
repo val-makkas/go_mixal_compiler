@@ -22,6 +22,8 @@ type CodeGenerator struct {
 	breakLabels    []string                // stack gia ta break
 	methodLabels   map[string]string       // Method onoma -> mixal label
 	symbolTables   map[string]*SymbolTable // symbol tables gia kathe method
+	literalPool    map[int]string
+	literalCounter int
 }
 
 func NewCodeGenerator() *CodeGenerator {
@@ -31,6 +33,8 @@ func NewCodeGenerator() *CodeGenerator {
 		currentAddress: VAR_START,
 		labelCounter:   1,
 		tempCounter:    1,
+		literalPool:    make(map[int]string),
+		literalCounter: 1,
 	}
 }
 
@@ -45,6 +49,14 @@ func (c *CodeGenerator) Generate(ast *AST, symbolTables map[string]*SymbolTable)
 
 	// method label gen
 	c.generateMethodLabels(ast)
+
+	// scan olo to ast gia literals
+	if err := c.scanForLiterals(ast); err != nil {
+		return "", fmt.Errorf("literal scanning error: %w", err)
+	}
+
+	// grafei ta equ sthn arxh
+	c.generateLiteralDefinitions()
 
 	// main generation
 	if err := c.generateMainProgram(ast); err != nil {
@@ -157,7 +169,7 @@ func (c *CodeGenerator) generateMethod(method Method) error {
 		return fmt.Errorf("error generating method body for %s: %w", method.Name, err)
 	}
 
-	c.output.WriteString("        JMP   1*5\n")
+	c.output.WriteString("        JMP   5\n")
 
 	return nil
 }
@@ -248,8 +260,8 @@ func (c *CodeGenerator) generateIfStatement(stmt *IfStatement, methodName string
 		return fmt.Errorf("error generating if condition: %w", err)
 	}
 
-	// sygkrish rA me 0
-	c.output.WriteString("        CMP   =0=\n")
+	lbl0 := c.getLitLabel(0)
+	c.output.WriteString(fmt.Sprintf("        CMP   %s\n", lbl0))
 
 	if stmt.ElseStmt != nil {
 		// goto sto else an false
@@ -297,7 +309,8 @@ func (c *CodeGenerator) generateWhileStatement(stmt *WhileStatement, methodName 
 	}
 
 	// eksodos an false
-	c.output.WriteString("        CMP   =0=\n")
+	lbl0 := c.getLitLabel(0)
+	c.output.WriteString(fmt.Sprintf("        CMP   %s\n", lbl0))
 	c.output.WriteString(fmt.Sprintf("        JE    %s\n", endLabel))
 
 	// paragwgh body
@@ -352,19 +365,18 @@ func (c *CodeGenerator) generateExpression(expr Expression, methodName string) e
 
 	switch e := expr.(type) {
 	case *NumberLiteral:
-		value, err := strconv.Atoi(e.Value)
-		if err != nil {
-			return fmt.Errorf("invalid number literal '%s': %w", e.Value, err)
-		}
-		c.output.WriteString(fmt.Sprintf("        LDA   =%d=\n", value))
+		v, _ := strconv.Atoi(e.Value)
+		lbl := c.getLitLabel(v)
+		c.output.WriteString(fmt.Sprintf("        LDA   %s\n", lbl))
 		return nil
 
 	case *BooleanLiteral:
-		value := 0
+		b := 0
 		if e.Value {
-			value = 1
+			b = 1
 		}
-		c.output.WriteString(fmt.Sprintf("        LDA   =%d=\n", value))
+		lbl := c.getLitLabel(b)
+		c.output.WriteString(fmt.Sprintf("        LDA   %s\n", lbl))
 		return nil
 
 	case *Identifier:
@@ -480,6 +492,8 @@ func (c *CodeGenerator) generateBinaryExpression(expr *BinaryExpression, methodN
 }
 
 func (c *CodeGenerator) generateComparison(op string, rightAddr int) error {
+	lbl0 := c.getLitLabel(0)
+	lbl1 := c.getLitLabel(1)
 	trueLabel := c.newLabel("TRUE")
 	endLabel := c.newLabel("ENDCMP")
 
@@ -502,11 +516,11 @@ func (c *CodeGenerator) generateComparison(op string, rightAddr int) error {
 	}
 
 	// false: fortwsh 0
-	c.output.WriteString("        LDA   =0=\n")
+	c.output.WriteString(fmt.Sprintf("        LDA   %s\n", lbl0))
 	c.output.WriteString(fmt.Sprintf("        JMP   %s\n", endLabel))
 
 	// true: fortwsh 1
-	c.output.WriteString(fmt.Sprintf("%s    LDA   =1=\n", trueLabel))
+	c.output.WriteString(fmt.Sprintf("%s    LDA   %s\n", trueLabel, lbl1))
 	c.output.WriteString(fmt.Sprintf("%s    NOP\n", endLabel))
 
 	return nil
@@ -518,12 +532,13 @@ func (c *CodeGenerator) generateUnaryExpression(expr *UnaryExpression, methodNam
 		return fmt.Errorf("error generating unary expression: %w", err)
 	}
 
+	lbl0 := c.getLitLabel(0)
 	switch expr.Operator {
 	case "-":
 		// arithmitikh arnhsh ( -x = 0 - x )
 		tempAddr := c.allocateTemp()
 		c.output.WriteString(fmt.Sprintf("        STA   %d\n", tempAddr))
-		c.output.WriteString("        LDA   =0=\n")
+		c.output.WriteString(fmt.Sprintf("        LDA   %s\n", lbl0))
 		c.output.WriteString(fmt.Sprintf("        SUB   %d\n", tempAddr))
 
 	case "!":
@@ -532,15 +547,17 @@ func (c *CodeGenerator) generateUnaryExpression(expr *UnaryExpression, methodNam
 		trueLabel := c.newLabel("TRUE")
 		endLabel := c.newLabel("ENDNOT")
 
-		c.output.WriteString("        CMP   =0=\n")
+		c.output.WriteString(fmt.Sprintf("        CMP   %s\n", lbl0))
 		c.output.WriteString(fmt.Sprintf("        JE    %s\n", trueLabel))
 
 		// != 0 tote apotelesma 0
-		c.output.WriteString("        LDA   =0=\n")
+		c.output.WriteString(fmt.Sprintf("        LDA   %s\n", lbl0))
 		c.output.WriteString(fmt.Sprintf("        JMP   %s\n", endLabel))
 
 		// == 0 tote apotelesma 1
-		c.output.WriteString(fmt.Sprintf("%s    LDA   =1=\n", trueLabel))
+		lbl1 := c.getLitLabel(1)
+		c.output.WriteString(fmt.Sprintf("%s    LDA   %s\n", trueLabel, lbl1))
+
 		c.output.WriteString(fmt.Sprintf("%s    NOP\n", endLabel))
 	}
 	return nil
@@ -608,6 +625,16 @@ func (c *CodeGenerator) findParameterByName(methodName, paramName string, symbol
 	return -1
 }
 
+func (c *CodeGenerator) getLitLabel(val int) string {
+	if lbl, ok := c.literalPool[val]; ok {
+		return lbl
+	}
+	lbl := fmt.Sprintf("LIT%d", c.literalCounter)
+	c.literalCounter++
+	c.literalPool[val] = lbl
+	return lbl
+}
+
 func (c *CodeGenerator) getParameterAddress(methodName string, index int) int {
 	paramName := c.makeParameterName(methodName, index)
 	if addr, exists := c.addressMap[paramName]; exists {
@@ -618,4 +645,96 @@ func (c *CodeGenerator) getParameterAddress(methodName string, index int) int {
 	c.addressMap[paramName] = addr
 	c.currentAddress++
 	return addr
+}
+
+// ✅ ΝΕΟ: Σκανάρει όλο το AST για να βρει όλα τα literals
+func (c *CodeGenerator) scanForLiterals(ast *AST) error {
+	for _, method := range ast.Methods {
+		if err := c.scanMethodForLiterals(method); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *CodeGenerator) scanMethodForLiterals(method Method) error {
+	// Σκανάρει declarations
+	for _, decl := range method.Body.Declarations {
+		for _, variable := range decl.Variables {
+			if variable.InitialValue != nil {
+				c.scanExpressionForLiterals(variable.InitialValue)
+			}
+		}
+	}
+
+	// Σκανάρει statements
+	for _, stmt := range method.Body.Statements {
+		c.scanStatementForLiterals(stmt)
+	}
+	return nil
+}
+
+func (c *CodeGenerator) scanStatementForLiterals(stmt Statement) {
+	switch s := stmt.(type) {
+	case *ReturnStatement:
+		c.scanExpressionForLiterals(s.Expression)
+	case *Assignment:
+		c.scanExpressionForLiterals(s.Expression)
+	case *IfStatement:
+		c.scanExpressionForLiterals(s.Condition)
+		c.scanStatementForLiterals(s.ThenStmt)
+		if s.ElseStmt != nil {
+			c.scanStatementForLiterals(s.ElseStmt)
+		}
+	case *WhileStatement:
+		c.scanExpressionForLiterals(s.Condition)
+		c.scanStatementForLiterals(s.Body)
+	case *BlockStatement:
+		for _, decl := range s.Block.Declarations {
+			for _, variable := range decl.Variables {
+				if variable.InitialValue != nil {
+					c.scanExpressionForLiterals(variable.InitialValue)
+				}
+			}
+		}
+		for _, stmt := range s.Block.Statements {
+			c.scanStatementForLiterals(stmt)
+		}
+	}
+}
+func (c *CodeGenerator) scanExpressionForLiterals(expr Expression) {
+	switch e := expr.(type) {
+	case *NumberLiteral:
+		v, _ := strconv.Atoi(e.Value)
+		c.getLitLabel(v) // Καταγράφει το literal
+	case *BooleanLiteral:
+		b := 0
+		if e.Value {
+			b = 1
+		}
+		c.getLitLabel(b)
+	case *BinaryExpression:
+		c.scanExpressionForLiterals(e.Left)
+		c.scanExpressionForLiterals(e.Right)
+	case *UnaryExpression:
+		c.scanExpressionForLiterals(e.Operand)
+		// Για unary expressions χρειαζόμαστε και το 0,1
+		if e.Operator == "-" || e.Operator == "!" {
+			c.getLitLabel(0)
+		}
+		if e.Operator == "!" {
+			c.getLitLabel(1)
+		}
+	case *MethodCall:
+		for _, arg := range e.Arguments {
+			c.scanExpressionForLiterals(arg)
+		}
+	}
+}
+
+func (c *CodeGenerator) generateLiteralDefinitions() {
+	for val, lbl := range c.literalPool {
+		c.output.WriteString(fmt.Sprintf("%s    EQU   %d\n", lbl, val))
+	}
+	c.output.WriteString("\n")
 }
