@@ -1,0 +1,38 @@
+        ORIG  1000
+MAIN    NOP
+        LDA   =2=
+        STA   2000
+        LDA   =3=
+        STA   2001
+        LDA   =4=
+        STA   2002
+        JSJ   CALCULATE
+        HLT
+CALCULATE    NOP
+        LDA   2000
+        STA   3001
+        LDA   2001
+        STA   3002
+        LDA   3001
+        ADD   3002
+        STA   2003
+        LDA   2003
+        STA   3003
+        LDA   2002
+        STA   3004
+        LDA   3003
+        MUL   3004
+        STA   2004
+        LDA   2004
+        JMP   1*5
+        ORIG  2000
+        CON   0
+        ORIG  2001
+        CON   0
+        ORIG  2002
+        CON   0
+        ORIG  2003
+        CON   0
+        ORIG  2004
+        CON   0
+        END   MAIN

@@ -31,17 +31,3 @@ func main() {
 	fmt.Println("Compilation successful!")
 	fmt.Println("=====================================")
 }
-
-func printUsage() {
-	fmt.Println("MIXAL Compiler - Compiles custom language to MIXAL assembly")
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Printf("  %s <source_file>\n", os.Args[0])
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Printf("  %s examples/simple.txt\n", os.Args[0])
-	fmt.Printf("  %s my_program.src\n", os.Args[0])
-	fmt.Println()
-	fmt.Println("Output:")
-	fmt.Println("  Creates <source_file>.mixal with the generated assembly code")
-}

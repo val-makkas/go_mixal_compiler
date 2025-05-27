@@ -305,6 +305,7 @@ func (p *Parser) parseStatements() ([]Statement, error) {
 // STMT -> ASSIGN ';' | return EXPR ';' | if '(' EXPR ')' STMT else STMT
 //
 //	| while '(' EXPR ')' STMT | break ';' | BLOCK | ';'
+
 func (p *Parser) parseStatement() (Statement, error) {
 	switch p.current.Type {
 	case TOK_RETURN:
@@ -351,7 +352,7 @@ func (p *Parser) parseReturnStatement() (Statement, error) {
 // if '(' EXPR ')' STMT else STMT
 func (p *Parser) parseIfStatement() (Statement, error) {
 	startLine := p.current.Line
-	p.advance() // skip 'if'
+	p.advance()
 
 	// '('
 	if p.current.Type != TOK_LPAREN {
@@ -379,7 +380,6 @@ func (p *Parser) parseIfStatement() (Statement, error) {
 
 	var elseStmt Statement
 	// else (ean yparxei)
-
 	if p.current.Type == TOK_ELSE {
 		p.advance() // skip 'else'
 

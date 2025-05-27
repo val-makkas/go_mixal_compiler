@@ -1,0 +1,10 @@
+int calculate(int a, int b, int c) {
+    int temp1, temp2;
+    temp1 = a + b;
+    temp2 = temp1 * c;
+    return temp2;
+}
+
+int main() {
+    return calculate(2, 3, 4);
+}

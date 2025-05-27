@@ -1,0 +1,38 @@
+MAIN    NOP
+        LDA   =4=
+        STA   2000
+        LDA   =6=
+        STA   2001
+        JSJ   MULTIPLY
+        NOP
+        STA   2005
+        LDA   2005
+        STA   2002
+        LDA   =8=
+        STA   2003
+        JSJ   SUBTRACT
+        NOP
+        HLT
+MULTIPLY    NOP
+        LDA   2000
+        MUL   2001
+        STA   2004
+        LDA   2004
+        JMP   1*5
+SUBTRACT    NOP
+        LDA   2002
+        SUB   2003
+        JMP   1*5
+        ORIG  2004
+        CON   0
+        ORIG  2005
+        CON   0
+        ORIG  2000
+        CON   0
+        ORIG  2001
+        CON   0
+        ORIG  2002
+        CON   0
+        ORIG  2003
+        CON   0
+        END   MAIN
