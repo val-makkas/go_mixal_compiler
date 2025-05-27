@@ -169,7 +169,7 @@ func (c *CodeGenerator) generateMethod(method Method) error {
 		return fmt.Errorf("error generating method body for %s: %w", method.Name, err)
 	}
 
-	c.output.WriteString("        JMP   5\n")
+	c.output.WriteString("        JMP   0,J\n")
 
 	return nil
 }
@@ -574,9 +574,7 @@ func (c *CodeGenerator) generateMethodCall(expr *MethodCall, methodName string) 
 	}
 
 	methodLabel := c.methodLabels[expr.Name]
-	c.output.WriteString(fmt.Sprintf("        JSJ   %s\n", methodLabel))
-
-	c.output.WriteString("        NOP\n")
+	c.output.WriteString(fmt.Sprintf("        JMP   %s,J\n", methodLabel))
 
 	return nil
 }
