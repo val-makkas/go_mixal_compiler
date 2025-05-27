@@ -160,16 +160,17 @@ func (c *CodeGenerator) generateMethods(ast *AST) error {
 
 func (c *CodeGenerator) generateMethod(method Method) error {
 	methodLabel := c.methodLabels[method.Name]
+	exitLabel := c.newLabel("EXIT") //EXIT1, EXIT2, ...
 
 	// entry point gia th methodo
-	c.output.WriteString(fmt.Sprintf("%s    NOP\n", methodLabel))
+	c.output.WriteString(fmt.Sprintf("%s    STJ   %s\n", methodLabel, exitLabel))
 
 	// paragwgh body ths methodou
 	if err := c.generateMethodBody(method); err != nil {
 		return fmt.Errorf("error generating method body for %s: %w", method.Name, err)
 	}
 
-	c.output.WriteString("        JMP   0,J\n")
+	c.output.WriteString(fmt.Sprintf("%s   JMP   *\n", exitLabel))
 
 	return nil
 }
@@ -233,7 +234,6 @@ func (c *CodeGenerator) generateReturnStatement(stmt *ReturnStatement, methodNam
 	if err := c.generateExpression(stmt.Expression, methodName); err != nil {
 		return fmt.Errorf("error generating return value: %w", err)
 	}
-
 	return nil
 }
 
@@ -574,7 +574,7 @@ func (c *CodeGenerator) generateMethodCall(expr *MethodCall, methodName string) 
 	}
 
 	methodLabel := c.methodLabels[expr.Name]
-	c.output.WriteString(fmt.Sprintf("        JMP   %s,J\n", methodLabel))
+	c.output.WriteString(fmt.Sprintf("        JMP   %s\n", methodLabel))
 
 	return nil
 }
