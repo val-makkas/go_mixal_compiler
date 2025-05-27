@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"regexp"
 	"unicode"
 )
 
@@ -129,20 +128,9 @@ func (l *Lexer) nextToken() (Token, error) {
 func (l *Lexer) handleMinus() (Token, error) {
 	startLine := l.line
 	startColumn := l.column
-
-	l.advance() // vlewpoume poios einai o epomenos xaraktiras
-
-	// elsegxoume an o epomenos xarakthras einai arithmos diaforetikos tou 0
-	if l.position < len(l.input) &&
-		unicode.IsDigit(rune(l.input[l.position])) &&
-		l.input[l.position] != '0' {
-		l.position--
-		l.column--
-		return l.readNumber()
-	}
-
-	//alliws einai operator -
-	return Token{TOK_MINUS, "-", startLine, startColumn}, nil
+	l.advance()
+	// panta telesths / den kanw readnum
+	return Token{Type: TOK_MINUS, Value: "-", Line: startLine, Column: startColumn}, nil
 }
 
 func (l *Lexer) handleEquals() (Token, error) {
@@ -246,31 +234,18 @@ func (l *Lexer) readNumber() (Token, error) {
 	startLine := l.line
 	startColumn := l.column
 
-	// an exei meion to diabazw
-	if l.position < len(l.input) && l.input[l.position] == '-' {
+	// διαβάζω ψηφία (επιτρέπω και 0)
+	if l.position < len(l.input) && unicode.IsDigit(rune(l.input[l.position])) {
 		l.advance()
-	}
-
-	// airthmoi prepei na arxizoun apo [1-9] oxi apo 0
-	if l.position < len(l.input) && l.input[l.position] == '0' {
+	} else {
 		return Token{TOK_ERROR, "", startLine, startColumn},
-			fmt.Errorf("invalid number format at line %d, column %d (numbers cannot start with 0)", startLine, startColumn)
+			fmt.Errorf("invalid number at %d:%d", startLine, startColumn)
 	}
-
-	//diabazw psifia
 	for l.position < len(l.input) && unicode.IsDigit(rune(l.input[l.position])) {
 		l.advance()
 	}
 
 	value := l.input[start:l.position]
-
-	// elsegxoume an einai egkyros arithmos
-	matched, _ := regexp.MatchString(`^-?[1-9]\d*$`, value)
-	if !matched {
-		return Token{TOK_ERROR, "", startLine, startColumn},
-			fmt.Errorf("invalid number format '%s' at line %d, column %d", value, startLine, startColumn)
-	}
-
 	return Token{TOK_NUM, value, startLine, startColumn}, nil
 }
 
