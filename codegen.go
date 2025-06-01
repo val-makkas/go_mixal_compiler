@@ -55,10 +55,6 @@ func (c *CodeGenerator) Generate(ast *AST, symbolTables map[string]*SymbolTable)
 	if err := c.generateMethods(ast); err != nil {
 		return "", fmt.Errorf("methods generation error: %w", err)
 	}
-
-	// generation orismwn apothikeushs metavlhtwn
-	c.generateVariableStorage()
-
 	// telos programmatos
 	c.generateFooter()
 
@@ -123,6 +119,7 @@ func (c *CodeGenerator) generateMainProgram(ast *AST) error {
 	}
 
 	// mixal entry point
+	c.output.WriteString("        ORIG  1000\n")
 	c.output.WriteString("MAIN    NOP\n")
 
 	// paragwgh body ths main
@@ -148,17 +145,16 @@ func (c *CodeGenerator) generateMethods(ast *AST) error {
 
 func (c *CodeGenerator) generateMethod(method Method) error {
 	methodLabel := c.methodLabels[method.Name]
+	exitLabel := methodLabel + "X"
 
-	// entry point gia th methodo
 	c.output.WriteString(fmt.Sprintf("%s    NOP\n", methodLabel))
+	c.output.WriteString(fmt.Sprintf("        STJ   %s\n", exitLabel))
 
-	// paragwgh body ths methodou
 	if err := c.generateMethodBody(method); err != nil {
 		return fmt.Errorf("error generating method body for %s: %w", method.Name, err)
 	}
 
-	c.output.WriteString("        JMP   1*5\n")
-
+	c.output.WriteString(fmt.Sprintf("%s    JMP   *\n", exitLabel))
 	return nil
 }
 
@@ -232,8 +228,31 @@ func (c *CodeGenerator) generateAssignment(stmt *Assignment, methodName string) 
 	}
 
 	// apothikeush apotelesmatos
+	var varAddr int
+	var found bool
+
+	// ✅ FIX: First check if it's a variable
 	varName := c.makeVariableName(methodName, stmt.Variable)
-	varAddr := c.addressMap[varName]
+	if addr, exists := c.addressMap[varName]; exists {
+		varAddr = addr
+		found = true
+	} else {
+		// ✅ FIX: If not a variable, check if it's a parameter
+		symbolTable := c.symbolTables[methodName]
+		paramAddr := c.findParameterByName(methodName, stmt.Variable, symbolTable)
+		if paramAddr != -1 {
+			varAddr = paramAddr
+			found = true
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("variable or parameter '%s' not found in method '%s'", stmt.Variable, methodName)
+	}
+
+	fmt.Printf("DEBUG: Assignment to '%s' -> varName='%s' -> address=%d\n",
+		stmt.Variable, varName, varAddr)
+
 	c.output.WriteString(fmt.Sprintf("        STA   %d\n", varAddr))
 
 	return nil
@@ -249,7 +268,7 @@ func (c *CodeGenerator) generateIfStatement(stmt *IfStatement, methodName string
 	}
 
 	// sygkrish rA me 0
-	c.output.WriteString("        CMP   =0=\n")
+	c.output.WriteString("        CMPA   =0=\n")
 
 	if stmt.ElseStmt != nil {
 		// goto sto else an false
@@ -297,7 +316,7 @@ func (c *CodeGenerator) generateWhileStatement(stmt *WhileStatement, methodName 
 	}
 
 	// eksodos an false
-	c.output.WriteString("        CMP   =0=\n")
+	c.output.WriteString("        CMPA   =0=\n")
 	c.output.WriteString(fmt.Sprintf("        JE    %s\n", endLabel))
 
 	// paragwgh body
@@ -418,7 +437,6 @@ func (c *CodeGenerator) generateBinaryExpression(expr *BinaryExpression, methodN
 				}
 			}
 
-			// ✅ Τώρα δουλεύει για parameters ΚΑΙ variables
 			if leftAddr != -1 && rightAddr != -1 {
 				c.output.WriteString(fmt.Sprintf("        LDA   %d\n", leftAddr))
 
@@ -483,7 +501,7 @@ func (c *CodeGenerator) generateComparison(op string, rightAddr int) error {
 	trueLabel := c.newLabel("TRUE")
 	endLabel := c.newLabel("ENDCMP")
 
-	c.output.WriteString(fmt.Sprintf("        CMP   %d\n", rightAddr))
+	c.output.WriteString(fmt.Sprintf("        CMPA   %d\n", rightAddr))
 
 	// goto vash apotelesmatos
 	switch op {
@@ -532,7 +550,7 @@ func (c *CodeGenerator) generateUnaryExpression(expr *UnaryExpression, methodNam
 		trueLabel := c.newLabel("TRUE")
 		endLabel := c.newLabel("ENDNOT")
 
-		c.output.WriteString("        CMP   =0=\n")
+		c.output.WriteString("        CMPA   =0=\n")
 		c.output.WriteString(fmt.Sprintf("        JE    %s\n", trueLabel))
 
 		// != 0 tote apotelesma 0
@@ -557,20 +575,33 @@ func (c *CodeGenerator) generateMethodCall(expr *MethodCall, methodName string) 
 	}
 
 	methodLabel := c.methodLabels[expr.Name]
-	c.output.WriteString(fmt.Sprintf("        JSJ   %s\n", methodLabel))
-
-	c.output.WriteString("        NOP\n")
+	c.output.WriteString(fmt.Sprintf("        JMP   %s\n", methodLabel))
 
 	return nil
 }
 
-func (c *CodeGenerator) generateVariableStorage() {
-	// APOTHIKEUSH METAVLITWN
+/* func (c *CodeGenerator) generateVariableStorage() {
+	allAddresses := make(map[int]bool)
 	for _, address := range c.addressMap {
+		allAddresses[address] = true
+	}
+	for i := 1; i < c.tempCounter; i++ {
+		tempAddr := TEMP_START + i
+		allAddresses[tempAddr] = true
+	}
+
+	addresses := make([]int, 0, len(allAddresses))
+	for addr := range allAddresses {
+		addresses = append(addresses, addr)
+	}
+
+	sort.Ints(addresses)
+
+	for _, address := range addresses {
 		c.output.WriteString(fmt.Sprintf("        ORIG  %d\n", address))
 		c.output.WriteString("        CON   0\n")
 	}
-}
+} */
 
 func (c *CodeGenerator) generateFooter() {
 	c.output.WriteString("        END   MAIN")
@@ -587,6 +618,7 @@ func (c *CodeGenerator) newLabel(prefix string) string {
 func (c *CodeGenerator) allocateTemp() int {
 	tempAddr := TEMP_START + c.tempCounter
 	c.tempCounter++
+
 	return tempAddr
 }
 

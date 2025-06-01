@@ -130,18 +130,8 @@ func (l *Lexer) handleMinus() (Token, error) {
 	startLine := l.line
 	startColumn := l.column
 
-	l.advance() // vlewpoume poios einai o epomenos xaraktiras
+	l.advance()
 
-	// elsegxoume an o epomenos xarakthras einai arithmos diaforetikos tou 0
-	if l.position < len(l.input) &&
-		unicode.IsDigit(rune(l.input[l.position])) &&
-		l.input[l.position] != '0' {
-		l.position--
-		l.column--
-		return l.readNumber()
-	}
-
-	//alliws einai operator -
 	return Token{TOK_MINUS, "-", startLine, startColumn}, nil
 }
 
@@ -253,8 +243,10 @@ func (l *Lexer) readNumber() (Token, error) {
 
 	// airthmoi prepei na arxizoun apo [1-9] oxi apo 0
 	if l.position < len(l.input) && l.input[l.position] == '0' {
-		return Token{TOK_ERROR, "", startLine, startColumn},
-			fmt.Errorf("invalid number format at line %d, column %d (numbers cannot start with 0)", startLine, startColumn)
+		if l.position+1 < len(l.input) && unicode.IsDigit(rune(l.input[l.position+1])) {
+			return Token{TOK_ERROR, "", startLine, startColumn},
+				fmt.Errorf("invalid number format at line %d, column %d (numbers cannot have leading zeros)", startLine, startColumn)
+		}
 	}
 
 	//diabazw psifia
@@ -265,7 +257,7 @@ func (l *Lexer) readNumber() (Token, error) {
 	value := l.input[start:l.position]
 
 	// elsegxoume an einai egkyros arithmos
-	matched, _ := regexp.MatchString(`^-?[1-9]\d*$`, value)
+	matched, _ := regexp.MatchString(`^-?([1-9]\d*|0)$`, value)
 	if !matched {
 		return Token{TOK_ERROR, "", startLine, startColumn},
 			fmt.Errorf("invalid number format '%s' at line %d, column %d", value, startLine, startColumn)
