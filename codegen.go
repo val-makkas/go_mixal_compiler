@@ -250,9 +250,6 @@ func (c *CodeGenerator) generateAssignment(stmt *Assignment, methodName string) 
 		return fmt.Errorf("variable or parameter '%s' not found in method '%s'", stmt.Variable, methodName)
 	}
 
-	fmt.Printf("DEBUG: Assignment to '%s' -> varName='%s' -> address=%d\n",
-		stmt.Variable, varName, varAddr)
-
 	c.output.WriteString(fmt.Sprintf("        STA   %d\n", varAddr))
 
 	return nil

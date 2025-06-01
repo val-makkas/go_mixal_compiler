@@ -30,11 +30,15 @@ func (l *Lexer) Tokenize(input string) ([]Token, error) {
 	var tokens []Token // lista apo tokens
 
 	for l.position < len(l.input) {
-		l.skipWhitespace()
-		l.skipComments()
+		// skiparw whitespaces kai comments mexri na vrw pragmatiko kodika
+		for {
+			oldPos := l.position
+			l.skipWhitespace()
+			l.skipComments()
 
-		if l.position >= len(l.input) {
-			break
+			if l.position == oldPos {
+				break
+			}
 		}
 
 		token, err := l.nextToken()
@@ -280,6 +284,9 @@ func (l *Lexer) skipComments() {
 		l.input[l.position+1] == '/' {
 		// paraleipw mexri to newline
 		for l.position < len(l.input) && l.input[l.position] != '\n' {
+			l.advance()
+		}
+		if l.position < len(l.input) && l.input[l.position] == '\n' {
 			l.advance()
 		}
 	}
