@@ -577,29 +577,6 @@ func (c *CodeGenerator) generateMethodCall(expr *MethodCall, methodName string) 
 	return nil
 }
 
-/* func (c *CodeGenerator) generateVariableStorage() {
-	allAddresses := make(map[int]bool)
-	for _, address := range c.addressMap {
-		allAddresses[address] = true
-	}
-	for i := 1; i < c.tempCounter; i++ {
-		tempAddr := TEMP_START + i
-		allAddresses[tempAddr] = true
-	}
-
-	addresses := make([]int, 0, len(allAddresses))
-	for addr := range allAddresses {
-		addresses = append(addresses, addr)
-	}
-
-	sort.Ints(addresses)
-
-	for _, address := range addresses {
-		c.output.WriteString(fmt.Sprintf("        ORIG  %d\n", address))
-		c.output.WriteString("        CON   0\n")
-	}
-} */
-
 func (c *CodeGenerator) generateFooter() {
 	c.output.WriteString("        END   MAIN")
 }
